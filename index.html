@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌿 KWLM Lab — 광합성 탐구</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <script>
+        // ✏️ 교사 설정: 아래 apiKey에 Claude API 키를 입력하세요 (sk-ant-api03-... 형태)
+        window.KWLMLAB_CONFIG = {
+            teacherCode: '1234',    // 교사 코드 (기본값: 1234, 변경 가능)
+            model: 'claude-sonnet-4-20250514'  // AI 모델 (변경 금지)
+        };
+        // 페이지 등록 객체 — 페이지 스크립트보다 반드시 먼저 선언해야 합니다
+        var Pages = {};
+    </script>
+</head>
+<body>
+    <div id="app">
+        <!-- 페이지 컨텐츠가 여기에 렌더링됩니다 -->
+    </div>
+
+    <!-- 공통 데이터 -->
+    <script src="data/prompts.js"></script>
+    <!-- API 모듈 -->
+    <script src="api/claude.js"></script>
+    <!-- 컴포넌트 -->
+    <script src="components/navbar.js"></script>
+    <script src="components/wordcloud.js"></script>
+    <!-- 페이지 -->
+    <script src="pages/login.js"></script>
+    <script src="pages/home.js"></script>
+    <script src="pages/k-page.js"></script>
+    <script src="pages/w-page.js"></script>
+    <script src="pages/l-page.js"></script>
+    <script src="pages/m-page.js"></script>
+    <script src="pages/dashboard.js"></script>
+    <!-- 앱 라우터 (반드시 마지막에 로드) -->
+    <script src="app.js"></script>
+</body>
+</html>
