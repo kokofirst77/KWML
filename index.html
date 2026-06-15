@@ -10,10 +10,11 @@
     <link rel="stylesheet" href="style.css">
 
     <script>
-        // ✏️ 교사 설정: 아래 apiKey에 Claude API 키를 입력하세요 (sk-ant-api03-... 형태)
+        // API 키는 localStorage에서 불러옵니다 — 코드에 직접 입력하지 마세요
         window.KWLMLAB_CONFIG = {
             teacherCode: '1234',    // 교사 코드 (기본값: 1234, 변경 가능)
-            model: 'claude-sonnet-4-20250514'  // AI 모델 (변경 금지)
+            model: 'claude-sonnet-4-20250514',  // AI 모델 (변경 금지)
+            apiKey: localStorage.getItem('kwlmlab_apikey') || ''
         };
         // 페이지 등록 객체 — 페이지 스크립트보다 반드시 먼저 선언해야 합니다
         var Pages = {};

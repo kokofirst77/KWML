@@ -42,6 +42,15 @@ Pages.login = {
                     <input class="form-input" id="teacher-code" type="password"
                            placeholder="4자리 코드 입력" maxlength="4">
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Claude API 키</label>
+                    <input class="form-input" id="api-key-input" type="password"
+                           placeholder="sk-ant-api03-..."
+                           value="${localStorage.getItem('kwlmlab_apikey') || ''}">
+                    <div id="api-key-status" style="font-size:12px; margin-top:4px; color:${localStorage.getItem('kwlmlab_apikey') ? '#2d6a4f' : '#999'}">
+                        ${localStorage.getItem('kwlmlab_apikey') ? '✅ API 키가 저장되어 있습니다' : '저장된 API 키 없음'}
+                    </div>
+                </div>
                 <button class="btn-secondary" id="teacher-login-btn">교사 대시보드로 이동</button>
 
                 <div id="login-error" class="error-msg" style="display:none;"></div>
@@ -82,17 +91,25 @@ Pages.login = {
         App.navigate('home');
     },
 
-    // 교사 코드 확인 후 대시보드 이동
+    // 교사 코드 확인 후 대시보드 이동 (API 키도 함께 저장)
     teacherLogin() {
         const code    = document.getElementById('teacher-code').value.trim();
         const correct = window.KWLMLAB_CONFIG?.teacherCode || '1234';
         const errorEl = document.getElementById('login-error');
+        const apiKey  = document.getElementById('api-key-input').value.trim();
 
         if (code !== correct) {
             errorEl.textContent = '교사 코드가 올바르지 않습니다.';
             errorEl.style.display = 'block';
             return;
         }
+
+        // API 키가 입력된 경우 localStorage에 저장하고 전역 CONFIG에 반영
+        if (apiKey) {
+            localStorage.setItem('kwlmlab_apikey', apiKey);
+            window.KWLMLAB_CONFIG.apiKey = apiKey;
+        }
+
         App.navigate('dashboard');
     }
 };
