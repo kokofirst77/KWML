@@ -1,161 +1,225 @@
-// K단계 페이지 — 사전 지식 소크라테스식 AI 챗봇
+// K단계 페이지 — 메타인지 자극 AI 튜터 (입력 카드 방식)
 Pages['k-page'] = {
 
-    messages:  [],   // 대화 기록 [{role, content}]
-    isLoading: false,
+    entries:      [],   // [{id, studentInput, aiResponse, hasMisconception, misconceptionType, isWrapUp, timestamp}]
+    conversation: [],   // [{role, content}] — Claude API 누적 대화
+    isLoading:    false,
+    isWrapUp:     false,
 
-    // 페이지 렌더링 — localStorage에서 이전 대화 불러오기
+    // 페이지 렌더링
     render(containerId) {
-        const saved = localStorage.getItem(App.getKey('k'));
-        this.messages  = saved ? JSON.parse(saved) : [];
-        this.isLoading = false;
+        const savedEntries = localStorage.getItem(App.getKey('k_entries'));
+        const savedConv    = localStorage.getItem(App.getKey('k_conv'));
+        this.entries      = savedEntries ? JSON.parse(savedEntries) : [];
+        this.conversation  = savedConv   ? JSON.parse(savedConv)    : [];
+        this.isWrapUp     = this.entries.some(e => e.isWrapUp);
+        this.isLoading    = false;
 
         document.getElementById(containerId).innerHTML = `
         <div class="page-container">
             <div class="page-header">
                 <div class="page-title">💡 K — 내가 아는 것</div>
-                <div class="page-desc">
-                    광합성에 대해 아는 것을 자유롭게 말해보세요!<br>
-                    AI가 여러분의 생각을 한 단계씩 함께 탐구해 드립니다.
-                </div>
+                <div class="page-desc">광합성에 대해 알고 있는 것을 모두 적어보세요!</div>
             </div>
 
-            <div class="chat-container">
-                <div class="chat-messages" id="chat-messages">
-                    ${this.messages.length === 0
-                        ? `<div class="chat-bubble ai">
-                               안녕하세요! 🌿 저는 광합성 탐구를 도와주는 AI예요.<br>
-                               광합성에 대해 알고 있는 것을 무엇이든 자유롭게 말해보세요!
-                           </div>`
-                        : this.renderMessages()}
+            <!-- 입력 영역 -->
+            <div class="content-card">
+                <div style="display:flex;gap:10px;">
+                    <input class="form-input" id="k-input" type="text"
+                           placeholder="광합성에 대해 알고 있는 것을 자유롭게 적어보세요"
+                           maxlength="300" style="flex:1;">
+                    <button class="chat-send-btn" id="k-send-btn"
+                            style="white-space:nowrap;padding:0 20px;border-radius:var(--radius);">
+                        등록하기
+                    </button>
                 </div>
-                <div class="chat-input-area">
-                    <input class="chat-input" id="chat-input" type="text"
-                           placeholder="광합성에 대해 알고 있는 것을 입력하세요..." maxlength="300">
-                    <button class="chat-send-btn" id="chat-send-btn">전송</button>
-                </div>
+                <div id="k-error" class="error-msg" style="display:none;margin-top:8px;"></div>
             </div>
 
-            <div id="chat-error" class="error-msg" style="display:none;"></div>
+            <!-- 입력 내역 누적 표시 -->
+            <div id="k-entries-list">
+                ${this.renderEntries()}
+            </div>
 
-            <button class="btn-complete" id="k-complete-btn">K단계 완료 ✓</button>
+            <!-- W단계 이동 버튼 (입력 수에 따라 상태 변경) -->
+            <button class="btn-complete" id="k-next-btn">
+                ${this.isWrapUp ? '사진 보러 가기 →' : 'W단계로 이동하기 →'}
+            </button>
         </div>`;
 
         this.attachEvents();
-        this.scrollToBottom();
+        this.updateNextBtn();
     },
 
-    // 대화 메시지 HTML 생성
-    renderMessages() {
-        return this.messages.map(m => `
-        <div class="chat-bubble ${m.role === 'user' ? 'user' : 'ai'}">
-            ${this.escapeHtml(m.content)}
+    // 입력 내역 HTML 생성
+    renderEntries() {
+        if (this.entries.length === 0) {
+            return `<div class="content-card" style="text-align:center;color:#bbb;padding:32px 24px;">
+                        🌱 알고 있는 것을 위에서 입력해보세요!
+                    </div>`;
+        }
+        return this.entries.map(e => `
+        <div class="k-entry-card${e.isWrapUp ? ' k-entry-wrapup' : ''}">
+            <div class="k-entry-student">💬 <strong>${this.escapeHtml(e.studentInput)}</strong></div>
+            <div class="k-entry-ai">🤖 ${this.escapeHtml(e.aiResponse)}</div>
         </div>`).join('');
     },
 
-    // XSS 방지용 HTML 이스케이프
+    // XSS 방지
     escapeHtml(str) {
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\n/g, '<br>');
+        return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
     },
 
     // 이벤트 연결
     attachEvents() {
-        document.getElementById('chat-send-btn')
-            .addEventListener('click', () => this.send());
-        document.getElementById('chat-input')
-            .addEventListener('keydown', e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); }
-            });
-        document.getElementById('k-complete-btn')
-            .addEventListener('click', () => this.complete());
+        document.getElementById('k-send-btn').addEventListener('click', () => this.send());
+        document.getElementById('k-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); this.send(); }
+        });
+        document.getElementById('k-next-btn').addEventListener('click', () => {
+            if (this.entries.length < 2) {
+                alert('광합성에 대해 조금 더 이야기해보세요! (2개 이상 입력 필요) 💬');
+                return;
+            }
+            App.completeStep('k');
+            App.navigate('w-page');
+        });
     },
 
-    // 메시지 전송 및 AI 응답 처리
+    // 학생 입력 전송 및 AI 응답 처리
     async send() {
         if (this.isLoading) return;
-        const input = document.getElementById('chat-input');
+        const input = document.getElementById('k-input');
         const text  = input.value.trim();
         if (!text) return;
 
-        // 사용자 메시지 추가
-        this.messages.push({ role: 'user', content: text });
-        input.value = '';
-        this.saveAndRender();
-
-        // 로딩 상태 시작
         this.isLoading = true;
-        document.getElementById('chat-send-btn').disabled = true;
-        document.getElementById('chat-error').style.display = 'none';
+        input.value    = '';
+        document.getElementById('k-send-btn').disabled = true;
+        document.getElementById('k-error').style.display = 'none';
 
-        // 로딩 말풍선 삽입
-        const msgBox = document.getElementById('chat-messages');
-        msgBox.insertAdjacentHTML('beforeend', `
-        <div class="chat-bubble ai" id="loading-bubble">
-            <div class="loading-dots"><span></span><span></span><span></span></div>
-            <small style="color:#999;display:block;margin-top:4px;">AI가 생각하는 중...</small>
+        // 로딩 카드 삽입
+        const list      = document.getElementById('k-entries-list');
+        const loadingId = 'k-loading-' + Date.now();
+        if (this.entries.length === 0) list.innerHTML = ''; // 빈 상태 문구 제거
+        list.insertAdjacentHTML('beforeend', `
+        <div class="k-entry-card" id="${loadingId}">
+            <div class="k-entry-student">💬 <strong>${this.escapeHtml(text)}</strong></div>
+            <div class="k-entry-ai" style="display:flex;align-items:center;gap:8px;">
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+                <small style="color:#999;">AI가 생각하는 중...</small>
+            </div>
         </div>`);
-        this.scrollToBottom();
+        list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        // 누적 대화에 사용자 발화 추가
+        this.conversation.push({ role: 'user', content: text });
 
         try {
-            let aiText = '';
-            const loadingBubble = document.getElementById('loading-bubble');
-
-            // Claude API 스트리밍 호출
-            await Claude.callClaude(PROMPTS.k, this.messages, chunk => {
-                aiText += chunk;
-                if (loadingBubble) loadingBubble.innerHTML = this.escapeHtml(aiText);
-                this.scrollToBottom();
+            // 스트리밍으로 수신하되 JSON 파싱은 완료 후 실행
+            let fullResponse = '';
+            await Claude.callClaude(PROMPTS.k, this.conversation, chunk => {
+                fullResponse += chunk;
             });
 
-            // 로딩 버블 제거 후 메시지 배열에 저장
-            if (loadingBubble) loadingBubble.remove();
-            this.messages.push({ role: 'assistant', content: aiText });
-            this.saveAndRender();
+            // JSON 파싱
+            let parsed = {};
+            try {
+                parsed = JSON.parse(fullResponse.trim());
+            } catch (_) {
+                // JSON 파싱 실패 시 응답 텍스트를 그대로 사용
+                parsed = { response: fullResponse, hasMisconception: false, misconceptionType: null, isWrapUp: false };
+            }
+
+            const aiText = parsed.response || fullResponse;
+            const entry  = {
+                id:               Date.now().toString(),
+                studentInput:     text,
+                aiResponse:       aiText,
+                hasMisconception: !!parsed.hasMisconception,
+                misconceptionType: parsed.misconceptionType || null,
+                isWrapUp:         !!parsed.isWrapUp,
+                timestamp:        Date.now()
+            };
+
+            // 누적 대화에 AI 응답 추가 (전체 JSON 문자열로 저장해야 다음 턴에서 단계 파악 가능)
+            this.conversation.push({ role: 'assistant', content: fullResponse });
+
+            this.entries.push(entry);
+            if (entry.isWrapUp) this.isWrapUp = true;
+            this.save();
+
+            // 로딩 카드를 완성된 카드로 교체
+            const loadingCard = document.getElementById(loadingId);
+            if (loadingCard) {
+                loadingCard.outerHTML = `
+                <div class="k-entry-card${entry.isWrapUp ? ' k-entry-wrapup' : ''}">
+                    <div class="k-entry-student">💬 <strong>${this.escapeHtml(text)}</strong></div>
+                    <div class="k-entry-ai">🤖 ${this.escapeHtml(aiText)}</div>
+                </div>`;
+            }
+
+            this.updateNextBtn();
+
+            // isWrapUp 수신 시 버튼 강조 애니메이션
+            if (entry.isWrapUp) {
+                const btn = document.getElementById('k-next-btn');
+                if (btn) {
+                    btn.textContent = '사진 보러 가기 →';
+                    btn.classList.add('btn-wrapup', 'pulse-once');
+                    setTimeout(() => btn.classList.remove('pulse-once'), 1200);
+                }
+            }
 
         } catch (err) {
-            const loadingBubble = document.getElementById('loading-bubble');
-            if (loadingBubble) loadingBubble.remove();
-            // 사용자 메시지 롤백
-            this.messages.pop();
-            this.saveAndRender();
-            document.getElementById('chat-error').textContent =
-                err.message || 'API 호출 중 오류가 발생했습니다.';
-            document.getElementById('chat-error').style.display = 'block';
+            // 실패 시 로딩 카드 제거 + 대화 롤백
+            const loadingCard = document.getElementById(loadingId);
+            if (loadingCard) loadingCard.remove();
+            if (this.entries.length === 0) list.innerHTML = this.renderEntries();
+            this.conversation.pop();
+
+            document.getElementById('k-error').textContent = err.message || 'API 오류가 발생했습니다.';
+            document.getElementById('k-error').style.display = 'block';
         } finally {
             this.isLoading = false;
-            document.getElementById('chat-send-btn').disabled = false;
-            const input = document.getElementById('chat-input');
-            if (input) input.focus();
+            const btn = document.getElementById('k-send-btn');
+            if (btn) btn.disabled = false;
+            const inp = document.getElementById('k-input');
+            if (inp) inp.focus();
         }
     },
 
-    // localStorage 저장 후 메시지 영역 다시 렌더링
-    saveAndRender() {
-        localStorage.setItem(App.getKey('k'), JSON.stringify(this.messages));
-        const msgBox = document.getElementById('chat-messages');
-        if (msgBox) {
-            msgBox.innerHTML = this.renderMessages();
-            this.scrollToBottom();
+    // W단계 이동 버튼 상태 업데이트
+    updateNextBtn() {
+        const btn   = document.getElementById('k-next-btn');
+        if (!btn) return;
+        const count = this.entries.length;
+
+        if (count < 2) {
+            // 비활성화: 0~1개 입력
+            btn.style.opacity    = '0.4';
+            btn.style.cursor     = 'not-allowed';
+            btn.style.background = '#aaa';
+            btn.classList.remove('btn-wrapup');
+        } else if (this.isWrapUp) {
+            // 강조: isWrapUp 수신 시
+            btn.style.opacity    = '';
+            btn.style.cursor     = '';
+            btn.style.background = '';
+            btn.classList.add('btn-wrapup');
+            btn.textContent = '사진 보러 가기 →';
+        } else {
+            // 일반 활성화: 2개 이상 입력
+            btn.style.opacity    = '';
+            btn.style.cursor     = '';
+            btn.style.background = '';
+            btn.classList.remove('btn-wrapup');
         }
     },
 
-    // 채팅창 최하단으로 스크롤
-    scrollToBottom() {
-        const msgBox = document.getElementById('chat-messages');
-        if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
-    },
-
-    // K단계 완료 처리
-    complete() {
-        if (this.messages.length === 0) {
-            alert('먼저 AI와 대화를 나눠보세요! 💬');
-            return;
-        }
-        App.completeStep('k');
-        App.navigate('w-page');
+    // localStorage 저장
+    save() {
+        localStorage.setItem(App.getKey('k_entries'), JSON.stringify(this.entries));
+        localStorage.setItem(App.getKey('k_conv'),    JSON.stringify(this.conversation));
     }
 };

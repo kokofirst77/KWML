@@ -708,3 +708,194 @@ body {
     min-width: 40px;
 }
 .chart-bar-count  { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; }
+
+/* ===== K단계 — 입력 카드 ===== */
+.k-entry-card {
+    background: var(--color-white);
+    border: 1.5px solid var(--color-border);
+    border-radius: 16px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+    transition: border-color 0.2s;
+}
+.k-entry-card.k-entry-wrapup {
+    border-color: var(--color-secondary);
+    background: #f0faf5;
+}
+.k-entry-student {
+    font-size: 15px;
+    color: var(--color-text);
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+.k-entry-ai {
+    font-size: 14px;
+    color: #3a6b50;
+    line-height: 1.7;
+}
+
+/* K단계 버튼 — isWrapUp 강조 */
+.btn-wrapup {
+    background: var(--color-primary) !important;
+    box-shadow: 0 0 0 4px rgba(82, 183, 136, 0.35);
+}
+
+/* 한 번만 실행되는 펄스 애니메이션 */
+@keyframes pulseAnim {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.06); box-shadow: 0 0 0 8px rgba(82,183,136,0.25); }
+    100% { transform: scale(1); box-shadow: 0 0 0 4px rgba(82,183,136,0.35); }
+}
+.pulse-once { animation: pulseAnim 0.7s ease-out forwards; }
+
+/* ===== W단계 — 2열 레이아웃 ===== */
+.w-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.w-photo-area {
+    position: relative;
+}
+.w-photo-placeholder {
+    background: var(--color-white);
+    border: 2px dashed var(--color-border);
+    border-radius: 16px;
+    min-height: 340px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.w-photo-filled {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    min-height: 340px;
+}
+.w-photo-guide {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(45, 106, 79, 0.82);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 16px;
+    text-align: center;
+}
+
+.w-input-area { display: flex; flex-direction: column; }
+
+.w-section-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 8px;
+}
+.w-k-summary {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 4px;
+}
+.w-k-summary li {
+    font-size: 13px;
+    color: var(--color-text);
+    padding: 5px 10px;
+    background: var(--color-light);
+    border-radius: 8px;
+    line-height: 1.5;
+}
+
+/* ===== W단계 — 실시간 피드 ===== */
+.w-live-section {
+    margin-bottom: 20px;
+}
+.w-live-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.live-badge {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e74c3c;
+    animation: livePulse 2s infinite;
+}
+@keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+}
+.w-feed-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.feed-item {
+    background: var(--color-white);
+    border: 1.5px solid var(--color-border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: var(--shadow);
+    transition: transform 0.15s;
+    animation: feedSlideIn 0.3s ease-out;
+}
+.feed-item:hover { transform: translateY(-1px); }
+.feed-item.feed-item-mine {
+    border-color: var(--color-secondary);
+    background: #f0faf5;
+}
+@keyframes feedSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.feed-item-text {
+    font-size: 15px;
+    color: var(--color-text);
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+.feed-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.feed-item-name {
+    font-size: 12px;
+    color: #aaa;
+}
+.feed-like-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 14px;
+    background: var(--color-light);
+    border: 1.5px solid var(--color-border);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--color-muted);
+    transition: all 0.2s;
+}
+.feed-like-btn:hover:not([disabled]) {
+    background: var(--color-secondary);
+    border-color: var(--color-secondary);
+    color: #fff;
+}
+.feed-like-btn.liked {
+    background: var(--color-secondary);
+    border-color: var(--color-secondary);
+    color: #fff;
+}
+.feed-like-btn[disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
+}

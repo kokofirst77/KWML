@@ -22,6 +22,16 @@ Pages.dashboard = {
                 ${this.buildStatCards(data)}
             </div>
 
+            <!-- W단계 인지갈등 사진 설정 (Firebase 연동 시 활성화) -->
+            <div class="dashboard-section">
+                <div class="dashboard-section-title">🖼️ W단계 — 인지갈등 사진 설정</div>
+                <div class="dashboard-section-body">
+                    ${window._firebaseReady
+                        ? this.buildPhotoUpload()
+                        : '<p style="color:#aaa;font-size:14px;">Firebase 설정 후 사진 업로드 기능이 활성화됩니다.</p>'}
+                </div>
+            </div>
+
             <!-- 오개념 키워드 섹션 -->
             <div class="dashboard-section">
                 <div class="dashboard-section-title">🧠 K단계 — 자주 등장한 키워드 (오개념 탐지)</div>
@@ -63,6 +73,19 @@ Pages.dashboard = {
             .addEventListener('click', () => Pages.dashboard.render(containerId));
         document.getElementById('dash-logout-btn')
             .addEventListener('click', () => App.navigate('login'));
+
+        // 사진 업로드 이벤트 연결
+        if (window._firebaseReady) {
+            const fileInput = document.getElementById('dash-photo-file');
+            const saveBtn   = document.getElementById('dash-photo-save');
+            if (fileInput) {
+                fileInput.addEventListener('change', e => this.previewPhoto(e));
+            }
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => this.uploadPhoto());
+            }
+            this.loadCurrentPhoto();  // 현재 사진 미리보기 로드
+        }
     },
 
     // localStorage에서 모든 학생 데이터 수집
@@ -78,9 +101,11 @@ Pages.dashboard = {
             const key = localStorage.key(i);
             if (!key) continue;
 
-            // 학생별 K 데이터에서 반·번호 추출
-            const kMatch = key.match(/^kwlmlab_k_(\d+)_(\d+)$/);
-            if (kMatch) studentKeys.add(`${kMatch[1]}_${kMatch[2]}`);
+            // 학생별 K 데이터에서 반·번호 추출 (새 형식 + 구 형식 모두 지원)
+            const kMatch  = key.match(/^kwlmlab_k_(\d+)_(\d+)$/);
+            const keMatch = key.match(/^kwlmlab_k_entries_(\d+)_(\d+)$/);
+            if (kMatch)  studentKeys.add(`${kMatch[1]}_${kMatch[2]}`);
+            if (keMatch) studentKeys.add(`${keMatch[1]}_${keMatch[2]}`);
 
             // 학생별 W 데이터에서 반·번호 추출
             const wMatch = key.match(/^kwlmlab_w_(\d+)_(\d+)$/);
@@ -109,30 +134,36 @@ Pages.dashboard = {
                 name = currentStudent.name;
             }
 
-            // 각 단계 완료 여부
-            const kData   = localStorage.getItem(`kwlmlab_k_${cls}_${num}`);
-            const wData   = localStorage.getItem(`kwlmlab_w_${cls}_${num}`);
-            const lData   = localStorage.getItem(`kwlmlab_l_card_${cls}_${num}`);
-            const mData   = localStorage.getItem(`kwlmlab_m_${cls}_${num}`);
+            // 각 단계 완료 여부 (새 형식 우선, 구 형식 fallback)
+            const kEntriesData = localStorage.getItem(`kwlmlab_k_entries_${cls}_${num}`);
+            const kOldData     = localStorage.getItem(`kwlmlab_k_${cls}_${num}`);
+            const kData        = kEntriesData || kOldData;
+            const wData        = localStorage.getItem(`kwlmlab_w_${cls}_${num}`);
+            const lData        = localStorage.getItem(`kwlmlab_l_card_${cls}_${num}`);
+            const mData        = localStorage.getItem(`kwlmlab_m_${cls}_${num}`);
 
             students.push({
                 class: cls, number: num, name,
                 kDone: !!kData,
-                wDone: !!wData,
+                wDone: !!wData || !!localStorage.getItem(`kwlmlab_w_submitted_${cls}_${num}`),
                 lDone: !!lData,
                 mDone: !!mData
             });
 
-            // K 메시지에서 학생(user) 발화만 수집
-            if (kData) {
+            // K 입력 내역 수집 (새 형식: entries 배열, 구 형식: messages 배열)
+            if (kEntriesData) {
                 try {
-                    const msgs = JSON.parse(kData);
-                    msgs.filter(m => m.role === 'user')
-                        .forEach(m => kMessages.push(m.content));
+                    const entries = JSON.parse(kEntriesData);
+                    entries.forEach(e => kMessages.push(e.studentInput));
+                } catch (_) {}
+            } else if (kOldData) {
+                try {
+                    const msgs = JSON.parse(kOldData);
+                    msgs.filter(m => m.role === 'user').forEach(m => kMessages.push(m.content));
                 } catch (_) {}
             }
 
-            // W 질문 수집
+            // W 질문 수집 (localStorage 방식)
             if (wData) {
                 try {
                     const qs = JSON.parse(wData);
@@ -303,8 +334,123 @@ Pages.dashboard = {
         </table>`;
     },
 
+    // W단계 사진 업로드 섹션 HTML 생성
+    buildPhotoUpload() {
+        return `
+        <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;">
+            <div>
+                <div id="dash-photo-preview" style="width:200px;height:140px;background:#f4f4f4;
+                     border:2px dashed var(--color-border);border-radius:12px;
+                     display:flex;align-items:center;justify-content:center;
+                     overflow:hidden;margin-bottom:10px;">
+                    <span style="color:#bbb;font-size:13px;">현재 사진 없음</span>
+                </div>
+                <input type="file" id="dash-photo-file" accept="image/*"
+                       style="display:none;">
+                <button class="btn-secondary" style="width:200px;margin-bottom:8px;"
+                        onclick="document.getElementById('dash-photo-file').click()">
+                    📁 사진 선택
+                </button>
+            </div>
+            <div style="flex:1;min-width:220px;">
+                <div style="font-size:13px;font-weight:600;color:var(--color-primary);margin-bottom:6px;">
+                    안내 문구 (선택)
+                </div>
+                <input class="form-input" id="dash-guide-text" type="text"
+                       placeholder="이 사진을 보고 궁금한 점을 적어보세요."
+                       style="margin-bottom:10px;">
+                <button class="btn-primary" id="dash-photo-save"
+                        style="width:auto;padding:12px 28px;">
+                    💾 저장하기
+                </button>
+                <div id="dash-photo-status" style="margin-top:8px;font-size:13px;color:#999;"></div>
+            </div>
+        </div>`;
+    },
+
+    // 현재 등록된 사진 로드
+    async loadCurrentPhoto() {
+        if (!window._firebaseReady) return;
+        const { doc, getDoc } = window._firestoreFns;
+        try {
+            const snap = await getDoc(doc(window._db, 'settings', 'wStage'));
+            if (snap.exists() && snap.data().imageUrl) {
+                const preview = document.getElementById('dash-photo-preview');
+                if (preview) {
+                    preview.innerHTML = `<img src="${snap.data().imageUrl}" alt="현재 사진"
+                        style="width:100%;height:100%;object-fit:cover;">`;
+                }
+                const guideInput = document.getElementById('dash-guide-text');
+                if (guideInput && snap.data().guideText) {
+                    guideInput.value = snap.data().guideText;
+                }
+            }
+        } catch (e) { console.warn('현재 사진 로드 실패:', e); }
+    },
+
+    // 파일 선택 시 미리보기
+    previewPhoto(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const preview = document.getElementById('dash-photo-preview');
+            if (preview) {
+                preview.innerHTML = `<img src="${e.target.result}" alt="미리보기"
+                    style="width:100%;height:100%;object-fit:cover;">`;
+            }
+        };
+        reader.readAsDataURL(file);
+    },
+
+    // 사진 Firebase Storage 업로드 후 Firestore에 URL 저장
+    async uploadPhoto() {
+        if (!window._firebaseReady) return;
+        const fileInput = document.getElementById('dash-photo-file');
+        const guideText = (document.getElementById('dash-guide-text')?.value || '').trim();
+        const statusEl  = document.getElementById('dash-photo-status');
+        const file      = fileInput?.files?.[0];
+
+        if (!file && !guideText) {
+            if (statusEl) { statusEl.textContent = '사진이나 안내 문구를 입력해주세요.'; statusEl.style.color = '#e74c3c'; }
+            return;
+        }
+
+        if (statusEl) { statusEl.textContent = '업로드 중...'; statusEl.style.color = '#999'; }
+        document.getElementById('dash-photo-save').disabled = true;
+
+        try {
+            const { doc, setDoc } = window._firestoreFns;
+            let imageUrl = null;
+
+            if (file) {
+                const { ref, uploadBytes, getDownloadURL } = window._storageFns;
+                const storageRef = ref(window._storage, 'w-stage/teacher-image');
+                await uploadBytes(storageRef, file);
+                imageUrl = await getDownloadURL(storageRef);
+            } else {
+                // 사진 없이 안내 문구만 업데이트 — 기존 URL 유지
+                const { getDoc } = window._firestoreFns;
+                const snap = await getDoc(doc(window._db, 'settings', 'wStage'));
+                if (snap.exists()) imageUrl = snap.data().imageUrl || null;
+            }
+
+            await setDoc(doc(window._db, 'settings', 'wStage'), {
+                imageUrl:  imageUrl || '',
+                guideText: guideText || '이 사진을 보고 궁금한 점을 적어보세요.',
+                updatedAt: Date.now()
+            });
+
+            if (statusEl) { statusEl.textContent = '✅ 저장 완료! W단계 화면에 바로 반영됩니다.'; statusEl.style.color = '#2d6a4f'; }
+        } catch (e) {
+            if (statusEl) { statusEl.textContent = '업로드 실패: ' + e.message; statusEl.style.color = '#e74c3c'; }
+        } finally {
+            document.getElementById('dash-photo-save').disabled = false;
+        }
+    },
+
     // HTML 이스케이프
     escapeHtml(str) {
-        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 };

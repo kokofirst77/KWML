@@ -15,6 +15,11 @@ const App = {
             clearInterval(window._pageInterval);
             window._pageInterval = null;
         }
+        // Firebase 실시간 구독 해제 (W단계 onSnapshot 등)
+        if (window._pageUnsubscribe) {
+            window._pageUnsubscribe();
+            window._pageUnsubscribe = null;
+        }
         this.currentPage = page;
         const appEl = document.getElementById('app');
 
