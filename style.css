@@ -969,3 +969,249 @@ body {
     border-color: var(--color-secondary);
     opacity: 1;
 }
+
+/* ===== L단계 스타일 ===== */
+
+/* 힌트 박스 */
+.l-hint-box {
+    background: #f0f7ee;
+    border-left: 4px solid var(--color-primary);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+}
+
+/* 내 학습 카드 */
+.l-my-card { margin-top: 4px; }
+
+.l-card-header {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 14px;
+}
+
+.l-card-body {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.l-card-img-col,
+.l-card-map-col {
+    flex: 1;
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.l-card-img-col {
+    background: #f8fffe;
+    border-radius: 10px;
+}
+
+.l-card-img-col svg,
+.l-card-map-col svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* 이미지 로딩 스켈레톤 */
+.l-img-skeleton {
+    width: 100%;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f0f7ee;
+    border-radius: 10px;
+}
+
+.l-card-quote {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+    font-style: italic;
+    margin-bottom: 14px;
+}
+
+.l-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.l-reactions { display: flex; gap: 8px; }
+
+.l-react-display {
+    font-size: 14px;
+    color: #888;
+    background: #f5f5f5;
+    border-radius: 20px;
+    padding: 5px 12px;
+}
+
+/* 정렬 버튼 활성 상태 */
+.l-sort-btn.active {
+    background: var(--color-primary) !important;
+    color: white !important;
+    border-color: var(--color-primary) !important;
+}
+
+/* 갤러리 그리드 */
+.l-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 16px;
+}
+
+/* 갤러리 카드 */
+.l-gallery-card {
+    background: white;
+    border: 1.5px solid #e8e8e8;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.15s;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.l-gallery-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.l-gallery-card-mine {
+    border: 2px solid var(--color-primary);
+    background: #fafff8;
+}
+
+.l-gallery-card-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.l-gallery-img-area svg,
+.l-gallery-map-area svg {
+    width: 100%;
+    height: auto;
+    max-height: 120px;
+    display: block;
+}
+
+.l-gallery-quote {
+    font-size: 12px;
+    color: #777;
+    font-style: italic;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.l-no-img {
+    height: 80px;
+    background: #f0f7ee;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 12px;
+}
+
+/* 모달 */
+.l-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.l-modal-box {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 720px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+}
+
+.l-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #f5f5f5;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.l-modal-close:hover { background: #eee; }
+
+.l-modal-header {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 16px;
+    padding-right: 40px;
+}
+
+.l-modal-body {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.l-modal-img,
+.l-modal-map { flex: 1; }
+
+.l-modal-img svg,
+.l-modal-map svg { width: 100%; height: auto; display: block; }
+
+.l-modal-quote {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: #555;
+    font-style: italic;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    word-break: keep-all;
+}
+
+.l-modal-reactions {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+}
+
+.l-modal-react-item { text-align: center; }
