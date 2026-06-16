@@ -76,15 +76,13 @@ Pages.dashboard = {
 
         // 사진 업로드 이벤트 연결
         if (window._firebaseReady) {
-            const fileInput = document.getElementById('dash-photo-file');
-            const saveBtn   = document.getElementById('dash-photo-save');
-            if (fileInput) {
-                fileInput.addEventListener('change', e => this.previewPhoto(e));
-            }
-            if (saveBtn) {
-                saveBtn.addEventListener('click', () => this.uploadPhoto());
-            }
-            this.loadCurrentPhoto();  // 현재 사진 미리보기 로드
+            document.getElementById('dash-photo-file')
+                ?.addEventListener('change', e => this.previewPhoto(e));
+            document.getElementById('dash-photo-save')
+                ?.addEventListener('click', () => this.uploadPhoto());
+            document.getElementById('dash-guide-save')
+                ?.addEventListener('click', () => this.saveGuideText());
+            this.loadCurrentPhoto();
         }
     },
 
@@ -334,119 +332,185 @@ Pages.dashboard = {
         </table>`;
     },
 
-    // W단계 사진 업로드 섹션 HTML 생성
+    // W단계 사진 업로드 섹션 HTML 생성 (여러 장 지원)
     buildPhotoUpload() {
         return `
-        <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;">
-            <div>
-                <div id="dash-photo-preview" style="width:200px;height:140px;background:#f4f4f4;
-                     border:2px dashed var(--color-border);border-radius:12px;
-                     display:flex;align-items:center;justify-content:center;
-                     overflow:hidden;margin-bottom:10px;">
-                    <span style="color:#bbb;font-size:13px;">현재 사진 없음</span>
-                </div>
-                <input type="file" id="dash-photo-file" accept="image/*"
-                       style="display:none;">
-                <button class="btn-secondary" style="width:200px;margin-bottom:8px;"
-                        onclick="document.getElementById('dash-photo-file').click()">
-                    📁 사진 선택
-                </button>
-            </div>
-            <div style="flex:1;min-width:220px;">
-                <div style="font-size:13px;font-weight:600;color:var(--color-primary);margin-bottom:6px;">
-                    안내 문구 (선택)
-                </div>
-                <input class="form-input" id="dash-guide-text" type="text"
-                       placeholder="이 사진을 보고 궁금한 점을 적어보세요."
-                       style="margin-bottom:10px;">
-                <button class="btn-primary" id="dash-photo-save"
-                        style="width:auto;padding:12px 28px;">
-                    💾 저장하기
-                </button>
-                <div id="dash-photo-status" style="margin-top:8px;font-size:13px;color:#999;"></div>
-            </div>
+        <!-- 안내 문구 설정 -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <input class="form-input" id="dash-guide-text" type="text"
+                   placeholder="이 사진들을 보고 궁금한 점을 적어보세요."
+                   style="flex:1;">
+            <button class="btn-secondary" id="dash-guide-save"
+                    style="width:auto;padding:10px 20px;white-space:nowrap;">문구 저장</button>
+        </div>
+        <!-- 사진 업로드 -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+            <input type="file" id="dash-photo-file" accept="image/*" multiple style="display:none;">
+            <button class="btn-secondary" style="width:auto;padding:10px 20px;"
+                    onclick="document.getElementById('dash-photo-file').click()">
+                📁 사진 선택 (여러 장 가능)
+            </button>
+            <button class="btn-primary" id="dash-photo-save"
+                    style="width:auto;padding:10px 24px;">⬆️ 업로드</button>
+            <span id="dash-photo-status" style="font-size:13px;color:#999;"></span>
+        </div>
+        <!-- 선택된 파일 미리보기 -->
+        <div id="dash-preview-strip" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+        <!-- 현재 등록된 사진 갤러리 -->
+        <div style="font-size:13px;font-weight:700;color:var(--color-primary);margin-bottom:8px;">
+            현재 등록된 사진
+        </div>
+        <div id="dash-photo-gallery">
+            <span style="color:#bbb;font-size:13px;">불러오는 중...</span>
         </div>`;
     },
 
-    // 현재 등록된 사진 로드
+    // 현재 등록된 사진 목록 로드
     async loadCurrentPhoto() {
         if (!window._firebaseReady) return;
         const { doc, getDoc } = window._firestoreFns;
         try {
             const snap = await getDoc(doc(window._db, 'settings', 'wStage'));
-            if (snap.exists() && snap.data().imageUrl) {
-                const preview = document.getElementById('dash-photo-preview');
-                if (preview) {
-                    preview.innerHTML = `<img src="${snap.data().imageUrl}" alt="현재 사진"
-                        style="width:100%;height:100%;object-fit:cover;">`;
-                }
+            if (!snap.exists()) {
+                this.renderDashPhotoGallery([]);
+                return;
+            }
+            const data = snap.data();
+            if (data.guideText) {
                 const guideInput = document.getElementById('dash-guide-text');
-                if (guideInput && snap.data().guideText) {
-                    guideInput.value = snap.data().guideText;
-                }
+                if (guideInput) guideInput.value = data.guideText;
             }
-        } catch (e) { console.warn('현재 사진 로드 실패:', e); }
+            // 새 형식(images 배열) 우선, 구 형식(imageUrl 단일) fallback
+            const images = data.images || (data.imageUrl ? [{ url: data.imageUrl }] : []);
+            this.renderDashPhotoGallery(images);
+        } catch (e) { console.warn('사진 로드 실패:', e); }
     },
 
-    // 파일 선택 시 미리보기
+    // 대시보드 사진 갤러리 HTML 렌더링
+    renderDashPhotoGallery(images) {
+        const gallery = document.getElementById('dash-photo-gallery');
+        if (!gallery) return;
+        if (!images || images.length === 0) {
+            gallery.innerHTML = '<span style="color:#bbb;font-size:13px;">등록된 사진이 없습니다.</span>';
+            return;
+        }
+        gallery.innerHTML = `<div class="dash-photo-grid">` +
+            images.map((img, idx) => `
+            <div class="dash-photo-item">
+                <img src="${img.url}" alt="사진 ${idx + 1}">
+                <button class="dash-photo-delete" data-idx="${idx}" title="삭제">✕</button>
+                <div class="dash-photo-num">${idx + 1}</div>
+            </div>`).join('') +
+            `</div>`;
+        gallery.querySelectorAll('.dash-photo-delete').forEach(btn => {
+            btn.addEventListener('click', () => this.deletePhoto(parseInt(btn.dataset.idx)));
+        });
+    },
+
+    // 파일 선택 시 선택 미리보기 스트립 표시
     previewPhoto(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-            const preview = document.getElementById('dash-photo-preview');
-            if (preview) {
-                preview.innerHTML = `<img src="${e.target.result}" alt="미리보기"
-                    style="width:100%;height:100%;object-fit:cover;">`;
-            }
-        };
-        reader.readAsDataURL(file);
+        const files = Array.from(event.target.files);
+        const strip = document.getElementById('dash-preview-strip');
+        if (!strip) return;
+        strip.innerHTML = '';
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const div = document.createElement('div');
+                div.className = 'dash-photo-item';
+                div.innerHTML = `<img src="${e.target.result}" alt="${file.name}">
+                    <div class="dash-photo-num" style="background:#52b788;">새</div>`;
+                strip.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        });
     },
 
-    // 사진 Firebase Storage 업로드 후 Firestore에 URL 저장
+    // 여러 장 업로드 → Firestore images 배열에 추가
     async uploadPhoto() {
         if (!window._firebaseReady) return;
         const fileInput = document.getElementById('dash-photo-file');
-        const guideText = (document.getElementById('dash-guide-text')?.value || '').trim();
         const statusEl  = document.getElementById('dash-photo-status');
-        const file      = fileInput?.files?.[0];
+        const files     = Array.from(fileInput?.files || []);
 
-        if (!file && !guideText) {
-            if (statusEl) { statusEl.textContent = '사진이나 안내 문구를 입력해주세요.'; statusEl.style.color = '#e74c3c'; }
+        if (files.length === 0) {
+            if (statusEl) { statusEl.textContent = '사진을 선택해주세요.'; statusEl.style.color = '#e74c3c'; }
             return;
         }
 
-        if (statusEl) { statusEl.textContent = '업로드 중...'; statusEl.style.color = '#999'; }
+        if (statusEl) { statusEl.textContent = `업로드 중... (0/${files.length})`; statusEl.style.color = '#999'; }
         document.getElementById('dash-photo-save').disabled = true;
 
         try {
-            const { doc, setDoc } = window._firestoreFns;
-            let imageUrl = null;
+            const { doc, getDoc, setDoc } = window._firestoreFns;
+            const { ref, uploadBytes, getDownloadURL } = window._storageFns;
 
-            if (file) {
-                const { ref, uploadBytes, getDownloadURL } = window._storageFns;
-                const storageRef = ref(window._storage, 'w-stage/teacher-image');
-                await uploadBytes(storageRef, file);
-                imageUrl = await getDownloadURL(storageRef);
-            } else {
-                // 사진 없이 안내 문구만 업데이트 — 기존 URL 유지
-                const { getDoc } = window._firestoreFns;
-                const snap = await getDoc(doc(window._db, 'settings', 'wStage'));
-                if (snap.exists()) imageUrl = snap.data().imageUrl || null;
+            // 기존 사진 배열 가져오기
+            const snap     = await getDoc(doc(window._db, 'settings', 'wStage'));
+            const existing = snap.exists() ? (snap.data().images || []) : [];
+            const guideText = document.getElementById('dash-guide-text')?.value
+                              || (snap.exists() ? snap.data().guideText : '')
+                              || '이 사진들을 보고 궁금한 점을 적어보세요.';
+
+            // 각 파일 순서대로 업로드
+            const newImages = [];
+            for (let i = 0; i < files.length; i++) {
+                const file     = files[i];
+                const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const filename = `${Date.now()}-${i}-${safeName}`;
+                const sRef     = ref(window._storage, `w-stage/${filename}`);
+                await uploadBytes(sRef, file);
+                const url = await getDownloadURL(sRef);
+                newImages.push({ url, filename, uploadedAt: Date.now() });
+                if (statusEl) statusEl.textContent = `업로드 중... (${i + 1}/${files.length})`;
             }
 
             await setDoc(doc(window._db, 'settings', 'wStage'), {
-                imageUrl:  imageUrl || '',
-                guideText: guideText || '이 사진을 보고 궁금한 점을 적어보세요.',
+                images: [...existing, ...newImages],
+                guideText,
                 updatedAt: Date.now()
             });
 
-            if (statusEl) { statusEl.textContent = '✅ 저장 완료! W단계 화면에 바로 반영됩니다.'; statusEl.style.color = '#2d6a4f'; }
+            if (statusEl) { statusEl.textContent = `✅ ${files.length}장 업로드 완료!`; statusEl.style.color = '#2d6a4f'; }
+            fileInput.value = '';
+            document.getElementById('dash-preview-strip').innerHTML = '';
+            this.loadCurrentPhoto();
         } catch (e) {
             if (statusEl) { statusEl.textContent = '업로드 실패: ' + e.message; statusEl.style.color = '#e74c3c'; }
         } finally {
-            document.getElementById('dash-photo-save').disabled = false;
+            const btn = document.getElementById('dash-photo-save');
+            if (btn) btn.disabled = false;
         }
+    },
+
+    // 사진 삭제 (인덱스로)
+    async deletePhoto(idx) {
+        if (!window._firebaseReady) return;
+        if (!confirm('이 사진을 삭제하시겠습니까?')) return;
+        const { doc, getDoc, setDoc } = window._firestoreFns;
+        try {
+            const snap = await getDoc(doc(window._db, 'settings', 'wStage'));
+            if (!snap.exists()) return;
+            const data   = snap.data();
+            const images = [...(data.images || [])];
+            images.splice(idx, 1);
+            await setDoc(doc(window._db, 'settings', 'wStage'), { ...data, images, updatedAt: Date.now() });
+            this.loadCurrentPhoto();
+        } catch (e) { alert('삭제 실패: ' + e.message); }
+    },
+
+    // 안내 문구만 별도 저장
+    async saveGuideText() {
+        if (!window._firebaseReady) return;
+        const guideText = document.getElementById('dash-guide-text')?.value || '';
+        const { doc, getDoc, setDoc } = window._firestoreFns;
+        try {
+            const snap = await getDoc(doc(window._db, 'settings', 'wStage'));
+            const data = snap.exists() ? snap.data() : {};
+            await setDoc(doc(window._db, 'settings', 'wStage'), { ...data, guideText, updatedAt: Date.now() });
+            const statusEl = document.getElementById('dash-photo-status');
+            if (statusEl) { statusEl.textContent = '✅ 안내 문구 저장 완료'; statusEl.style.color = '#2d6a4f'; }
+        } catch (e) { alert('저장 실패: ' + e.message); }
     },
 
     // HTML 이스케이프

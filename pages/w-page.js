@@ -98,34 +98,75 @@ Pages['w-page'] = {
         } catch (_) { return []; }
     },
 
-    // 교사 업로드 사진 Firestore에서 로드
+    // 교사 업로드 사진 Firestore에서 로드 (여러 장 갤러리 지원)
     async loadPhoto() {
         if (!window._firebaseReady) return;
         const { doc, getDoc } = window._firestoreFns;
         try {
-            const snap = await getDoc(doc(window._db, 'settings', 'wStage'));
+            const snap      = await getDoc(doc(window._db, 'settings', 'wStage'));
             const container = document.getElementById('w-photo-container');
             if (!container) return;
 
-            if (snap.exists() && snap.data().imageUrl) {
-                const { imageUrl, guideText } = snap.data();
-                container.className = 'w-photo-filled';
+            if (!snap.exists()) {
+                container.innerHTML = this.noPhotoHTML();
+                return;
+            }
+
+            const data = snap.data();
+            // 새 형식(images 배열) 우선, 구 형식(imageUrl 단일) fallback
+            const images = data.images || (data.imageUrl ? [{ url: data.imageUrl }] : []);
+
+            if (images.length === 0) {
+                container.innerHTML = this.noPhotoHTML();
+                return;
+            }
+
+            container.className = 'w-photo-filled';
+
+            if (images.length === 1) {
+                // 사진 1장: 꽉 채워 표시
                 container.innerHTML = `
-                    <img src="${imageUrl}" alt="인지갈등 유발 사진"
+                    <img src="${images[0].url}" alt="인지갈등 사진"
                          style="width:100%;height:100%;object-fit:cover;border-radius:12px;display:block;">
-                    ${guideText
-                        ? `<div class="w-photo-guide">${this.escapeHtml(guideText)}</div>`
-                        : ''}`;
+                    ${data.guideText ? `<div class="w-photo-guide">${this.escapeHtml(data.guideText)}</div>` : ''}`;
             } else {
+                // 사진 여러 장: 썸네일 스트립 + 선택 사진 크게 표시
                 container.innerHTML = `
-                    <div style="text-align:center;color:#bbb;padding:40px 20px;">
-                        <div style="font-size:48px;margin-bottom:14px;">🖼️</div>
-                        <div style="font-size:14px;">선생님이 아직 사진을 등록하지 않았어요.</div>
+                    <div class="w-gallery-main">
+                        <img src="${images[0].url}" alt="사진 1" id="w-gallery-big"
+                             style="width:100%;height:260px;object-fit:cover;border-radius:10px 10px 0 0;display:block;">
+                        ${data.guideText ? `<div class="w-photo-guide">${this.escapeHtml(data.guideText)}</div>` : ''}
+                    </div>
+                    <div class="w-gallery-strip">
+                        ${images.map((img, i) => `
+                        <img src="${img.url}" alt="사진 ${i + 1}"
+                             class="w-gallery-thumb${i === 0 ? ' active' : ''}"
+                             data-url="${img.url}" data-idx="${i}"
+                             title="사진 ${i + 1}">`).join('')}
                     </div>`;
+
+                // 썸네일 클릭 → 큰 사진 교체
+                container.querySelectorAll('.w-gallery-thumb').forEach(thumb => {
+                    thumb.addEventListener('click', () => {
+                        const big = document.getElementById('w-gallery-big');
+                        if (big) big.src = thumb.dataset.url;
+                        container.querySelectorAll('.w-gallery-thumb')
+                            .forEach(t => t.classList.remove('active'));
+                        thumb.classList.add('active');
+                    });
+                });
             }
         } catch (e) {
             console.warn('사진 로드 실패:', e);
         }
+    },
+
+    // 사진 미등록 안내 HTML
+    noPhotoHTML() {
+        return `<div style="text-align:center;color:#bbb;padding:40px 20px;">
+            <div style="font-size:48px;margin-bottom:14px;">🖼️</div>
+            <div style="font-size:14px;">선생님이 아직 사진을 등록하지 않았어요.</div>
+        </div>`;
     },
 
     // Firebase 실시간 질문 피드 구독
