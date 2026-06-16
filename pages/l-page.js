@@ -191,32 +191,9 @@ Pages['l-page'] = {
             document.getElementById('l-share-btn')
                 ?.addEventListener('click', () => this.saveToFirebase(student));
 
-            // ③ SVG 이미지 생성 — 원문 학생 텍스트로 호출 (기존 방식 유지)
-            let svgText = '';
-            await Claude.callClaude(
-                PROMPTS.l_img,
-                [{ role: 'user', content: text }],
-                chunk => { svgText += chunk; },
-                { maxTokens: 2048 }
-            );
-
-            // 마크다운 코드블록 제거 후 <svg>...</svg> 추출
-            const stripped  = svgText.replace(/```[\w]*\n?/g, '').replace(/```/g, '');
-            const svgMatch  = stripped.match(/<svg[\s\S]+?<\/svg>/i);
-            const safeSvg   = svgMatch
-                ? svgMatch[0]
-                    .replace(/<script[\s\S]*?<\/script>/gi, '')
-                    .replace(/\bon\w+\s*=/gi, 'data-removed=')
-                : this._fallbackSvg();
-
-            // ④ 이미지 영역 업데이트
-            const imgCol = document.getElementById('l-img-col');
-            if (imgCol) imgCol.innerHTML = safeSvg;
-
-            // ⑤ 카드 데이터 저장 + 공유 버튼 활성화
-            this._cardData = { nickname, text, conceptMap, svgImage: safeSvg };
+            // ③ 카드 데이터 우선 저장 + 공유 버튼 활성화 (이미지 생성 전에 먼저)
+            this._cardData = { nickname, text, conceptMap, svgImage: this._fallbackSvg() };
             localStorage.setItem(App.getKey('l_card'), JSON.stringify({ nickname, text }));
-
             const shareBtn = document.getElementById('l-share-btn');
             if (shareBtn) shareBtn.disabled = false;
 
@@ -224,6 +201,29 @@ Pages['l-page'] = {
             section.innerHTML = '';
             errorEl.textContent = '카드 생성 오류: ' + (err.message || '다시 시도해주세요.');
             errorEl.style.display = 'block';
+            document.getElementById('l-generate-btn').disabled = false;
+            return;
+        }
+
+        // ④ SVG 이미지 생성 — 별도 try/catch (실패해도 카드·공유는 유지)
+        try {
+            let svgRaw = '';
+            await Claude.callClaude(
+                PROMPTS.l_img,
+                [{ role: 'user', content: text }],
+                chunk => { svgRaw += chunk; },
+                { maxTokens: 4096 }   // 2048 → 4096: SVG 잘림 방지
+            );
+            const safeSvg = this._extractSvg(svgRaw);
+            if (safeSvg) {
+                const imgCol = document.getElementById('l-img-col');
+                if (imgCol) imgCol.innerHTML = safeSvg;
+                this._cardData.svgImage = safeSvg;
+            } else {
+                console.error('[KWLM L] SVG 추출 실패. Claude 응답 앞 500자:', svgRaw.slice(0, 500));
+            }
+        } catch (imgErr) {
+            console.error('[KWLM L] 이미지 API 오류:', imgErr.message);
         } finally {
             const b = document.getElementById('l-generate-btn');
             if (b) b.disabled = false;
@@ -261,11 +261,41 @@ Pages['l-page'] = {
         </div>`;
     },
 
+    // SVG 텍스트에서 <svg>...</svg> 추출 (indexOf 방식 — 잘린 SVG도 복구)
+    _extractSvg(raw) {
+        if (!raw || raw.trim().length < 30) return null;
+
+        // 마크다운 펜스 제거 (```svg ... ``` 또는 ``` ... ```)
+        const c = raw.replace(/```[\w\s]*\n?/g, '').replace(/```/g, '').trim();
+
+        const start = c.indexOf('<svg');
+        if (start === -1) return null;
+
+        const end = c.lastIndexOf('</svg>');
+        let extracted;
+        if (end !== -1 && end > start) {
+            extracted = c.slice(start, end + 6);         // 완전한 SVG
+        } else if (c.length - start > 100) {
+            extracted = c.slice(start) + '\n</svg>';      // 잘린 SVG 복구
+        } else {
+            return null;
+        }
+
+        return extracted
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/\bon\w+\s*=/gi, 'data-x=');
+    },
+
     _fallbackSvg() {
         return `<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
-            <rect width="320" height="220" fill="#f0f7ee" rx="10"/>
-            <text x="160" y="115" text-anchor="middle" fill="#52b788"
-                  font-size="14" font-family="sans-serif">이미지 생성 실패</text>
+            <rect width="320" height="220" fill="#f0f7ee" rx="12"/>
+            <circle cx="160" cy="90" r="55" fill="#d8f3dc" stroke="#52b788" stroke-width="2.5"/>
+            <text x="160" y="86" text-anchor="middle" font-size="14" font-weight="700"
+                  fill="#2d6a4f" font-family="sans-serif">광합성</text>
+            <text x="160" y="104" text-anchor="middle" font-size="10"
+                  fill="#52b788" font-family="sans-serif">빛+H2O+CO2 → 포도당+O2</text>
+            <text x="160" y="183" text-anchor="middle" font-size="11"
+                  fill="#aaa" font-family="sans-serif">이미지를 생성하지 못했어요</text>
         </svg>`;
     },
 
