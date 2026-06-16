@@ -191,20 +191,22 @@ Pages['l-page'] = {
             document.getElementById('l-share-btn')
                 ?.addEventListener('click', () => this.saveToFirebase(student));
 
-            // ③ SVG 이미지 생성
+            // ③ SVG 이미지 생성 — 원문 학생 텍스트로 호출 (기존 방식 유지)
             let svgText = '';
             await Claude.callClaude(
                 PROMPTS.l_img,
-                [{ role: 'user', content: imagePrompt }],
+                [{ role: 'user', content: text }],
                 chunk => { svgText += chunk; },
                 { maxTokens: 2048 }
             );
 
-            const svgMatch = svgText.match(/<svg[\s\S]*?<\/svg>/i);
-            const safeSvg  = svgMatch
+            // 마크다운 코드블록 제거 후 <svg>...</svg> 추출
+            const stripped  = svgText.replace(/```[\w]*\n?/g, '').replace(/```/g, '');
+            const svgMatch  = stripped.match(/<svg[\s\S]+?<\/svg>/i);
+            const safeSvg   = svgMatch
                 ? svgMatch[0]
                     .replace(/<script[\s\S]*?<\/script>/gi, '')
-                    .replace(/\bon\w+="[^"]*"/gi, '')
+                    .replace(/\bon\w+\s*=/gi, 'data-removed=')
                 : this._fallbackSvg();
 
             // ④ 이미지 영역 업데이트

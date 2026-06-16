@@ -75,17 +75,18 @@ const PROMPTS = {
 ## 응답 형식 — 반드시 JSON만 반환. 마크다운 코드블록 금지.
 {"conceptMap":{"layoutType":"linear","nodes":[{"id":"n1","label":"빛","isCenter":true},{"id":"n2","label":"엽록소","isCenter":false},{"id":"n3","label":"포도당","isCenter":false}],"edges":[{"from":"n1","to":"n2","label":"흡수됨"},{"from":"n2","to":"n3","label":"만들어냄"}]},"imagePrompt":"Aquatic plant releasing oxygen bubbles in bright light, science textbook illustration style, clean educational diagram"}`,
 
-    // L단계 ②: 이미지 프롬프트 → SVG 일러스트 생성
-    l_img: `학생의 광합성 실험 장면을 SVG 일러스트로 그려주세요.
-사용자 메시지의 영어 설명을 참고하여 중학교 과학 교과서 스타일의 SVG를 생성합니다.
+    // L단계 ②: 학생 텍스트 → SVG 광합성 일러스트 생성
+    l_img: `학생이 광합성에 대해 텍스트로 설명했어.
+이 내용을 바탕으로 광합성 과정을 나타내는 SVG 과학 일러스트를 만들어줘.
 
 요구사항:
 - viewBox="0 0 320 220"
-- 과학 교과서 스타일 (깔끔하고 교육적, 단순명료)
+- 잎 모양, 햇빛, CO2/O2 흐름, 포도당 등 학생이 언급한 내용 포함
+- 학생이 특별히 언급한 개념은 강조 표시
 - 색상: 초록(#52b788), 노랑(#ffd166), 파랑(#06d6a0), 주황(#ff9f1c)
-- 한국어 레이블 사용 가능
+- 한국어 레이블 사용
 - <script> 태그 절대 사용 금지
-- SVG 코드만 반환, 마크다운 없이`,
+- SVG 코드만 반환. 마크다운 코드블록 없이. 설명 없이.`,
 
     // M단계: 심화 질문을 분류하고 탐구 과제 제안
     m: `중학교 2학년 학생이 광합성 수업 후 심화 질문을 했어.
